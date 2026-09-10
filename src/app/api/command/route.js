@@ -6,55 +6,52 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// [GET] Dipanggil oleh ESP32 setiap 3 detik
+// GET: Dipanggil oleh ESP32 setiap 3 detik
 export async function GET() {
   try {
-    // 1. Cari 1 perintah tertua yang statusnya masih 'pending'
+    // Hanya ambil perintah yang dibuat maksimal 1 menit yang lalu
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+
     const { data: command, error } = await supabase
       .from('device_commands')
       .select('*')
       .eq('status', 'pending')
+      .gte('created_at', oneMinuteAgo) 
       .order('created_at', { ascending: true })
       .limit(1)
       .single();
 
     if (error || !command) {
-      // Tidak ada perintah baru
       return NextResponse.json({ has_command: false });
     }
 
-    // 2. Tandai perintah tersebut sebagai 'executed' agar tidak dieksekusi berulang kali
     await supabase
       .from('device_commands')
       .update({ status: 'executed' })
       .eq('id', command.id);
 
-    // 3. Kirimkan perintah ke ESP32
-    // Asumsi di kolom 'action' isinya: "open_door", "register_mode", dsb.
     return NextResponse.json({
       has_command: true,
       command: {
-        action: command.action,
+        action: command.action, // contoh: "open_door" atau "register_mode"
         duration: 5
       }
     });
 
   } catch (error) {
-    return NextResponse.json({ has_command: false }, { status: 500 });
+    return NextResponse.json({ has_command: false });
   }
 }
 
-// [POST] Dipanggil oleh tombol di Frontend Aplikasi (misal tombol "Buka Pintu")
+// POST: Dipanggil dari tombol Dashboard Web (contoh: onClick Buka Pintu)
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { action } = body;
+    const { action } = await req.json();
 
     if (!action) {
       return NextResponse.json({ error: "Action is required" }, { status: 400 });
     }
 
-    // Masukkan perintah ke antrean database
     const { error } = await supabase
       .from('device_commands')
       .insert([{ action: action, status: 'pending' }]);
