@@ -1,23 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// GET: Dipanggil oleh ESP32 setiap 3 detik
 export async function GET() {
   try {
-    // Hanya ambil perintah yang dibuat maksimal 1 menit yang lalu
-    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-
     const { data: command, error } = await supabase
       .from('device_commands')
       .select('*')
       .eq('status', 'pending')
-      .gte('created_at', oneMinuteAgo) 
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
@@ -30,11 +25,18 @@ export async function GET() {
       .update({ status: 'executed' })
       .eq('id', command.id);
 
+    // Bersihkan antrean yang sudah usang agar ESP32 tidak bingung
+    await supabase
+      .from('device_commands')
+      .update({ status: 'expired' })
+      .eq('status', 'pending');
+
     return NextResponse.json({
       has_command: true,
       command: {
-        action: command.action, // contoh: "open_door" atau "register_mode"
-        duration: 5
+        action: command.action,
+        // Kirimkan durasi dari database jika ada, default 5 detik
+        duration: command.duration || 5 
       }
     });
 
@@ -43,10 +45,10 @@ export async function GET() {
   }
 }
 
-// POST: Dipanggil dari tombol Dashboard Web (contoh: onClick Buka Pintu)
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action, duration } = body;
 
     if (!action) {
       return NextResponse.json({ error: "Action is required" }, { status: 400 });
@@ -54,7 +56,11 @@ export async function POST(req) {
 
     const { error } = await supabase
       .from('device_commands')
-      .insert([{ action: action, status: 'pending' }]);
+      .insert([{ 
+        action: action, 
+        duration: duration || 5, // Simpan durasi ke tabel
+        status: 'pending' 
+      }]);
 
     if (error) throw error;
 

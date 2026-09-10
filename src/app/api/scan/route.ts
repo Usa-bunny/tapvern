@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
-    const { event, uid } = await req.json();
+    const body = await req.json();
+    const { event, uid } = body;
 
     if (!uid) {
       return NextResponse.json({ action: "attendance_failed", message: "UID Kosong" });
@@ -25,7 +26,6 @@ export async function POST(req) {
         return NextResponse.json({ action: 'attendance_failed', message: 'Tdk Terdaftar' });
       }
 
-      // Zona Waktu Jakarta
       const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(' ')[0];
       
       const { data: history } = await supabase
@@ -64,6 +64,7 @@ export async function POST(req) {
         return NextResponse.json({ action: 'register_failed', message: 'UID Terpakai' });
       }
 
+      // Gunakan UPSERT di ID 1 secara konsisten
       await supabase.from('temp_scans').upsert({ id: 1, uid: uid });
 
       return NextResponse.json({ 
@@ -75,6 +76,7 @@ export async function POST(req) {
     return NextResponse.json({ action: "attendance_failed", message: "Event Invalid" });
 
   } catch (error) {
+    console.error("API Scan Error:", error);
     return NextResponse.json({ action: "attendance_failed", message: "Server Error" }, { status: 500 });
   }
 }

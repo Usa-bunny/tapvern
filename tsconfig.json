@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "src/app/api/scan/route.js"  ],
+, "src/app/api/scan/route.ts"  ],
   "exclude": ["node_modules"]
 }
