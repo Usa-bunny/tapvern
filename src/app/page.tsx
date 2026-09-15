@@ -1,301 +1,159 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Student, Attendance, ProcessedStudent, SortConfig } from "@/types";
+import { Header } from "@/components/Header";
+import { FilterBar } from "@/components/FilterBar";
+import { StudentTable } from "@/components/StudentTable";
+import { LoadingState, ErrorState } from "@/components/ui/States";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface User {
-  name: string;
-  rfid_uid: string;
-}
-
-interface AttendanceRecord {
-  id: number;
-  created_at: string;
-  status: string;
-  users: User;
-}
-
-export default function AdminDashboard() {
-  const [newUid, setNewUid] = useState<string | null>(null);
-  const [inputName, setInputName] = useState<string>("");
-  const [isRegistering, setIsRegistering] = useState<boolean>(false);
-
-  // State Baru untuk Fitur UI
-  const [isRegisterMode, setIsRegisterMode] = useState<boolean>(false);
-  const [doorDuration, setDoorDuration] = useState<number>(5);
-
-  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+export default function PublicDashboard() {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [attendances, setAttendances] = useState<Attendance[]>([]);
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchTodayAttendance = async () => {
-    setIsLoading(true);
-    const today = new Date()
-      .toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" })
-      .split(" ")[0];
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterGender, setFilterGender] = useState("");
+  const [filterClass, setFilterClass] = useState("");
+  const [filterMajor, setFilterMajor] = useState("");
+  const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
-    const { data, error } = await supabase
-      .from("attendance")
-      .select(`id, created_at, status, users (name, rfid_uid)`)
-      .gte("created_at", `${today}T00:00:00+07:00`)
-      .order("created_at", { ascending: false });
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
 
-    if (!error && data) setAttendances(data as unknown as AttendanceRecord[]);
-    setIsLoading(false);
-  };
+      const [studentsRes, attendanceRes] = await Promise.all([
+        supabase.from("students").select("*").eq("is_draft", false),
+        supabase.from("attendance").select("student_id, created_at, status").gte("created_at", `${today}T00:00:00+07:00`)
+      ]);
 
-  const toggleRegisterMode = async () => {
-    const targetMode = !isRegisterMode;
-    const action = targetMode ? "register_mode" : "normal_mode";
+      if (studentsRes.error) throw studentsRes.error;
+      if (attendanceRes.error) throw attendanceRes.error;
 
-    setIsRegisterMode(targetMode);
-
-    await fetch("/api/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-
-    if (!targetMode) setNewUid(null); // Tutup form jika mode dimatikan
-    showToast(targetMode ? "Mode Daftar Aktif" : "Kembali ke Mode Normal");
-  };
-
-  const openDoorCustom = async () => {
-    await fetch("/api/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "open_door", duration: doorDuration }),
-    });
-    showToast(`Pintu dibuka selama ${doorDuration} detik`);
-  };
-
-  const saveNewUser = async () => {
-    if (!inputName.trim() || !newUid)
-      return showToast("Nama tidak boleh kosong!", true);
-    setIsRegistering(true);
-
-    const res = await fetch("/api/students", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rfid_uid: newUid, name: inputName }),
-    });
-
-    setIsRegistering(false);
-
-    if (!res.ok) {
-      showToast("Gagal menyimpan data.", true);
-    } else {
-      showToast(`Berhasil mendaftarkan: ${inputName}`);
-      setNewUid(null);
-      setIsRegisterMode(false); // Matikan toggle UI
-
-      // UBAH DISINI: Kirim MQTT register_success ke ESP32 + Nama
-      await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "register_success",
-          name: inputName, // Nama akan muncul di LCD ESP32
-        }),
-      });
-
-      setInputName("");
+      setStudents(studentsRes.data || []);
+      setAttendances(attendanceRes.data || []);
+    } catch (err: any) {
+      setError(err.message || "Gagal terhubung ke database. Silakan periksa koneksi Anda.");
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const showToast = (msg: string, isError = false) => {
-    setToastMessage(`${isError ? "❌" : "✅"} ${msg}`);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchTodayAttendance();
-
-    // Pastikan Realtime diaktifkan di dashboard Supabase untuk tabel ini!
-    const scanChannel = supabase
-      .channel("listen_scans")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "temp_scans" },
-        (payload: any) => {
-          if (payload.new && payload.new.uid) {
-            setNewUid(payload.new.uid);
-          }
-        },
-      )
-      .subscribe();
+    fetchData();
 
     const attendanceChannel = supabase
-      .channel("listen_attendance")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "attendance" },
-        () => fetchTodayAttendance(),
-      )
+      .channel("public_attendance")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "attendance" }, () => fetchData())
       .subscribe();
 
     return () => {
-      supabase.removeChannel(scanChannel);
       supabase.removeChannel(attendanceChannel);
     };
-  }, []);
+  }, [fetchData]);
+
+  const handleSort = (key: keyof ProcessedStudent) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setFilterClass("");
+    setFilterMajor("");
+    setFilterGender("");
+    setSortConfig(null);
+  };
+
+  const processedData = useMemo(() => {
+    let filtered = students;
+
+    if (searchQuery) {
+      filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    if (filterGender) {
+      filtered = filtered.filter(s => s.gender === filterGender);
+    }
+    if (filterClass) {
+      filtered = filtered.filter(s => s.class_name === filterClass);
+    }
+    if (filterMajor) {
+      filtered = filtered.filter(s => s.major === filterMajor);
+    }
+
+    let mappedData: ProcessedStudent[] = filtered.map((student) => {
+      const todayRecord = attendances.find((a) => a.student_id === student.id);
+      return {
+        ...student,
+        isPresent: !!todayRecord,
+        time: todayRecord ? new Date(todayRecord.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-",
+        rawTime: todayRecord ? new Date(todayRecord.created_at).getTime() : 0,
+      };
+    });
+
+    if (sortConfig) {
+      mappedData.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+        if (aValue === bValue) return 0;
+
+        const isAsc = sortConfig.direction === "asc";
+        return aValue < bValue ? (isAsc ? -1 : 1) : (isAsc ? 1 : -1);
+      });
+    }
+
+    return mappedData;
+  }, [students, attendances, searchQuery, filterGender, filterClass, filterMajor, sortConfig]);
+
+  const uniqueClasses = Array.from(new Set(students.map(s => s.class_name).filter(Boolean))) as string[];
+  const uniqueMajors = Array.from(new Set(students.map(s => s.major).filter(Boolean))) as string[];
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 p-8 font-sans relative">
-      {toastMessage && (
-        <div className="fixed top-5 right-5 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-xl z-50">
-          {toastMessage}
-        </div>
-      )}
-
-      <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              TapVern Console
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">Kontrol Akses Terpusat</p>
-          </div>
-
-          <div className="flex gap-6 items-center">
-            {/* Toggle Switch Register Mode */}
-            <div className="flex items-center gap-3 bg-gray-100 p-2 rounded-lg">
-              <span
-                className={`text-sm font-medium ${isRegisterMode ? "text-blue-600" : "text-gray-500"}`}
-              >
-                {isRegisterMode ? "Mode Pendaftaran Aktif" : "Mode Normal"}
-              </span>
-              <button
-                onClick={toggleRegisterMode}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                  isRegisterMode ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    isRegisterMode ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Custom Door Controller */}
-            <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-              <input
-                type="number"
-                value={doorDuration}
-                onChange={(e) => setDoorDuration(Number(e.target.value))}
-                className="w-16 px-2 py-1.5 border border-emerald-300 rounded text-center"
-                min="1"
-                max="60"
+    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 md:p-10 font-sans selection:bg-blue-200">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <Header />
+        
+        {error ? (
+          <ErrorState message={error} onRetry={fetchData} />
+        ) : (
+          <>
+            <FilterBar 
+              searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+              filterClass={filterClass} setFilterClass={setFilterClass}
+              filterMajor={filterMajor} setFilterMajor={setFilterMajor}
+              filterGender={filterGender} setFilterGender={setFilterGender}
+              uniqueClasses={uniqueClasses} uniqueMajors={uniqueMajors}
+              onReset={handleResetFilters}
+            />
+            
+            {isLoading ? (
+              <LoadingState />
+            ) : (
+              <StudentTable 
+                data={processedData} 
+                sortConfig={sortConfig} 
+                onSort={handleSort} 
               />
-              <span className="text-sm text-emerald-800 font-medium mr-2">
-                Detik
-              </span>
-              <button
-                onClick={openDoorCustom}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-md font-medium shadow-sm transition-colors"
-              >
-                🚪 Buka
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {newUid && isRegisterMode && (
-          <div className="bg-blue-50 border border-blue-200 p-6 rounded-2xl shadow-sm flex items-start gap-6 animate-pulse">
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-blue-900 mb-4">
-                Mendaftarkan Kartu Baru
-              </h2>
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-blue-700 font-medium">
-                  UID Terdeteksi:
-                </span>
-                <span className="font-mono bg-blue-200 px-3 py-1 rounded-md text-blue-900 tracking-widest">
-                  {newUid}
-                </span>
-              </div>
-
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Masukkan Nama Lengkap..."
-                  value={inputName}
-                  onChange={(e) => setInputName(e.target.value)}
-                  className="flex-1 border border-blue-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={saveNewUser}
-                  disabled={isRegistering}
-                  className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-2 rounded-lg font-medium transition-colors"
-                >
-                  {isRegistering ? "Menyimpan..." : "Simpan Data"}
-                </button>
-              </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
-
-        {/* TABEL ABSENSI HARI INI (Sama seperti sebelumnya) */}
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
-            Log Absensi Hari Ini
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-                  <th className="p-4 font-medium rounded-tl-lg">Waktu</th>
-                  <th className="p-4 font-medium">Nama</th>
-                  <th className="p-4 font-medium">UID Kartu</th>
-                  <th className="p-4 font-medium rounded-tr-lg">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={4} className="p-8 text-center text-gray-400">
-                      Memuat data...
-                    </td>
-                  </tr>
-                ) : (
-                  attendances.map((log) => (
-                    <tr
-                      key={log.id}
-                      className="border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <td className="p-4 text-gray-600 text-sm">
-                        {new Date(log.created_at).toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}{" "}
-                        WIB
-                      </td>
-                      <td className="p-4 font-medium text-gray-900">
-                        {log.users?.name || "-"}
-                      </td>
-                      <td className="p-4 text-sm font-mono text-gray-500">
-                        {log.users?.rfid_uid || "-"}
-                      </td>
-                      <td className="p-4">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </div>
   );
