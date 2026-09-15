@@ -79,7 +79,7 @@ export default function AdminDashboard() {
       return showToast("Nama tidak boleh kosong!", true);
     setIsRegistering(true);
 
-    const res = await fetch("/api/users", {
+    const res = await fetch("/api/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rfid_uid: newUid, name: inputName }),
