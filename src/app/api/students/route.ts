@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert user baru ke database
-    const { error } = await supabase.from("users").insert([{ rfid_uid, name }]);
+    const { error } = await supabase.from("students").insert([{ rfid_uid, name }]);
 
     if (error) throw error;
 

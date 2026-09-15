@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     if (event === "rfid_scan") {
       const { data: user, error: userError } = await supabase
-        .from("users")
+        .from("students")
         .select("*")
         .eq("rfid_uid", uid)
         .single();
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       const { data: history } = await supabase
         .from("attendance")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("student_id", user.id)
         .gte("created_at", `${today}T00:00:00+07:00`)
         .limit(1);
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
       await supabase
         .from("attendance")
-        .insert([{ user_id: user.id, status: "Hadir" }]);
+        .insert([{ student_id: user.id, status: "Hadir" }]);
 
       return NextResponse.json({
         action: "attendance_success",
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (event === "register_card") {
       const { data: existingUser } = await supabase
-        .from("users")
+        .from("students")
         .select("id")
         .eq("rfid_uid", uid)
         .single();
