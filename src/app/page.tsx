@@ -145,45 +145,33 @@ export default function PublicDashboard() {
   }, [students, attendances, holidays, searchQuery, filterGender, filterClass, filterDomicile, sortConfig]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 md:p-10 font-sans selection:bg-blue-200">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Header />
-          <button 
-            onClick={() => setIsExportModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 border border-emerald-500 w-full sm:w-auto justify-center"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            Export Laporan
-          </button>
-        </div>
-        
-        {error ? (
-          <ErrorState message={error} onRetry={fetchData} />
-        ) : (
-          <>
-            <FilterBar 
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-              filterClass={filterClass} setFilterClass={setFilterClass}
-              filterDomicile={filterDomicile} setFilterDomicile={setFilterDomicile}
-              filterGender={filterGender} setFilterGender={setFilterGender}
-              uniqueClasses={uniqueClasses} uniqueDomiciles={uniqueDomiciles}
-              onReset={handleResetFilters}
+    <div className="space-y-6 md:space-y-8">
+      <Header onExportClick={() => setIsExportModalOpen(true)} />
+      
+      {error ? (
+        <ErrorState message={error} onRetry={fetchData} />
+      ) : (
+        <>
+          <FilterBar 
+            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+            filterClass={filterClass} setFilterClass={setFilterClass}
+            filterDomicile={filterDomicile} setFilterDomicile={setFilterDomicile}
+            filterGender={filterGender} setFilterGender={setFilterGender}
+            uniqueClasses={uniqueClasses} uniqueDomiciles={uniqueDomiciles}
+            onReset={handleResetFilters}
+          />
+          
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <StudentTable 
+              data={processedData} 
+              sortConfig={sortConfig} 
+              onSort={handleSort} 
             />
-            
-            {isLoading ? (
-              <LoadingState />
-            ) : (
-              <StudentTable 
-                data={processedData} 
-                sortConfig={sortConfig} 
-                onSort={handleSort} 
-              />
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
 
       <ExportModal 
         isOpen={isExportModalOpen} 

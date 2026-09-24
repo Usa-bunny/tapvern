@@ -1,64 +1,31 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "@/components/AppShell";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
+const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  display: "swap",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "TapVern - Sistem Absensi Digital & Manajemen Sekolah Real-Time",
-    template: "%s | TapVern",
-  },
-  description: "Platform e-absensi siswa berbasis IoT dan web terpadu. Pantau kehadiran real-time, manajemen data siswa, dan portal orang tua dengan mudah dan akurat.",
-  keywords: [
-    "absensi sekolah",
-    "e-absensi",
-    "absensi rfid",
-    "sistem absensi digital",
-    "tapvern",
-    "portal orang tua",
-    "manajemen siswa smk",
-  ],
-  authors: [{ name: "TapVern Team" }],
-  creator: "TapVern",
-  publisher: "TapVern",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    type: "website",
-    locale: "id_ID",
-    url: "https://tapvern.vercel.app",
-    title: "TapVern - Sistem Absensi Digital & Manajemen Sekolah Real-Time",
-    description: "Platform e-absensi siswa berbasis IoT dan web terpadu untuk sekolah modern.",
-    siteName: "TapVern",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "TapVern - Sistem Absensi Digital",
-    description: "Platform e-absensi siswa berbasis IoT dan web terpadu.",
-  },
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  title: "TapVern - IoT School Attendance System",
+  description:
+    "Sistem absensi sekolah terintegrasi IoT dan Real-time Dashboard",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html
-      lang="id"
-      className={`${jakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+    <html lang="id">
+      <body
+        className={`${fontSans.variable} font-sans antialiased bg-cream text-primary`}
+      >
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

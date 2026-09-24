@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const { student_id, parent_name, parent_username, parent_password } = await req.json()
     if (!parent_username || !parent_password) {
-      return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Data tidak lengkap" }, { status: 400 })
     }
 
     const dummyEmail = formatUsernameToEmail(parent_username)
@@ -43,14 +43,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, parent_id: parentId })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     const { parent_id, new_password, parent_name, parent_username } = await req.json()
-    if (!parent_id) return NextResponse.json({ error: "ID tidak ditemukan" }, { status: 400 })
+    if (!parent_id) return NextResponse.json({ success: false, error: "ID tidak ditemukan" }, { status: 400 })
 
     const authUpdates: any = {}
     let dummyEmail = ""
@@ -77,14 +77,14 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
     const { parent_id } = await req.json()
-    if (!parent_id) return NextResponse.json({ error: "ID tidak ditemukan" }, { status: 400 })
+    if (!parent_id) return NextResponse.json({ success: false, error: "ID tidak ditemukan" }, { status: 400 })
 
     await supabase.from('students').update({ parent_id: null }).eq('parent_id', parent_id)
 
@@ -93,6 +93,6 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

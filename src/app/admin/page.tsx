@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
-import { Student, AttendanceRecord, ParentProfile } from "@/types/admin";
 import { ActivityTabs } from "@/components/admin/ActivityTabs";
 import { StudentModal } from "@/components/admin/StudentModal";
+import { AttendanceRecord, ParentProfile, Student } from "@/types/admin";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,11 +23,11 @@ export default function AdminDashboard() {
   const [holidays, setHolidays] = useState<any[]>([]);
 
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [searchActive, setSearchActive] = useState("");
-  const [filterParent, setFilterParent] = useState("all");
 
   const fetchData = useCallback(async () => {
-    const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
+    const today = new Date()
+      .toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" })
+      .split(" ")[0];
 
     const [attData, studentData, parentData, holData] = await Promise.all([
       supabase
@@ -54,10 +54,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) return router.push("/login");
 
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
       if (profile?.role === "admin") {
         setIsAdminAuth(true);
         fetchData();
@@ -72,22 +78,22 @@ export default function AdminDashboard() {
     if (!isAdminAuth) return;
     const channel = supabase
       .channel("admin_sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, () => fetchData())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance" },
+        () => fetchData(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "students" },
+        () => fetchData(),
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [isAdminAuth, fetchData]);
-
-  const filteredActive = useMemo(() => {
-    return activeStudents.filter((s) => {
-      const matchName = s.name.toLowerCase().includes(searchActive.toLowerCase());
-      const matchParent = filterParent === "all" ? true : filterParent === "yes" ? !!s.parent_id : !s.parent_id;
-      return matchName && matchParent;
-    });
-  }, [activeStudents, searchActive, filterParent]);
 
   const handleUpdateStudent = async (studentData: any, parentAction: any) => {
     try {
@@ -118,7 +124,10 @@ export default function AdminDashboard() {
             }),
           });
         } else if (parentAction.type === "link") {
-          await supabase.from("students").update({ parent_id: parentAction.id }).eq("id", studentData.id);
+          await supabase
+            .from("students")
+            .update({ parent_id: parentAction.id })
+            .eq("id", studentData.id);
         } else if (parentAction.type === "update") {
           await fetch("/api/parents", {
             method: "PUT",
@@ -130,7 +139,10 @@ export default function AdminDashboard() {
             }),
           });
         } else if (parentAction.type === "unlink") {
-          await supabase.from("students").update({ parent_id: null }).eq("id", studentData.id);
+          await supabase
+            .from("students")
+            .update({ parent_id: null })
+            .eq("id", studentData.id);
         }
       }
       setEditingStudent(null);
@@ -140,107 +152,54 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!isAdminAuth) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
-      <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-    </div>
-  );
+  if (!isAdminAuth)
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 md:p-8 font-sans">
-      <div className="max-w-350 mx-auto space-y-6">
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-6 md:p-8 rounded-4xl shadow-sm border border-gray-100 gap-6">
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Admin Console</h1>
-            <p className="text-gray-500 font-medium mt-1">Manajemen Pengguna & Laporan Kehadiran</p>
-          </div>
-          <button
-            onClick={async () => { await supabase.auth.signOut(); router.push("/login"); }}
-            className="bg-gray-100 text-gray-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-gray-200 transition-colors w-full lg:w-auto"
-          >
-            Keluar
-          </button>
-        </header>
+    <div className="space-y-8">
+      <header className="relative bg-primary rounded-[2.5rem] p-8 sm:p-10 text-cream shadow-xl overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-          <div className="lg:col-span-4 space-y-6 flex flex-col">
-            <section className="bg-white p-6 rounded-4xl shadow-sm border border-yellow-200/60 max-h-100 flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-extrabold text-gray-900">Draft Register</h2>
-                <span className="bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-lg text-xs font-bold">
-                  {draftStudents.length} Kartu Baru
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 font-medium mb-3">Siswa melakukan tap kartu di alat, lalu klik "Lengkapi" di sini.</p>
-              <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                {draftStudents.map((student) => (
-                  <div key={student.id} className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <div>
-                      <p className="font-bold text-gray-900">{student.name}</p>
-                      <p className="text-xs text-gray-500 font-mono mt-0.5 font-bold">UID: {student.rfid_uid}</p>
-                    </div>
-                    <button
-                      onClick={() => setEditingStudent(student)}
-                      className="bg-white border border-gray-200 text-gray-800 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-100 transition-colors shadow-sm"
-                    >
-                      Lengkapi
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="bg-white p-6 rounded-4xl shadow-sm border border-gray-100 flex-1 flex flex-col min-h-100">
-              <h2 className="text-xl font-extrabold text-gray-900 mb-4">Siswa Aktif</h2>
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  placeholder="Cari..."
-                  value={searchActive}
-                  onChange={(e) => setSearchActive(e.target.value)}
-                  className="flex-1 bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold outline-none focus:border-blue-600"
-                />
-                <select
-                  value={filterParent}
-                  onChange={(e) => setFilterParent(e.target.value)}
-                  className="bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold outline-none focus:border-blue-600 cursor-pointer"
-                >
-                  <option value="all">Semua Wali</option>
-                  <option value="yes">Tertaut</option>
-                  <option value="no">Tanpa Wali</option>
-                </select>
-              </div>
-              <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                {filteredActive.map((student) => (
-                  <div
-                    key={student.id}
-                    onClick={() => setEditingStudent(student)}
-                    className="flex justify-between items-center bg-white hover:bg-blue-50 p-4 rounded-2xl transition-colors cursor-pointer border border-gray-100 hover:border-blue-200 group"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <p className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{student.name}</p>
-                      <div className="flex gap-2">
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded-md text-gray-600 font-bold">{student.class_name || "Tanpa Kelas"}</span>
-                        {student.parent_id && <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1 rounded-md font-bold">Wali Aktif</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <section className="lg:col-span-8 h-full">
-            <ActivityTabs 
-              attendances={attendances} 
-              parents={parents} 
-              students={activeStudents} 
-              holidays={holidays}
-              refreshData={fetchData}
-            />
-          </section>
+        <div className="relative z-10 space-y-2">
+          <span className="text-[10px] font-black tracking-widest uppercase bg-white/10 text-emerald-300 px-3.5 py-1.5 rounded-full">
+            ADMINISTRATOR
+          </span>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">
+            Admin Console
+          </h1>
+          <p className="text-emerald-100/80 font-medium text-sm sm:text-base">
+            Manajemen kartu RFID draft, akun wali, kalender libur, dan log
+            kehadiran siswa.
+          </p>
         </div>
-      </div>
+
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
+          className="relative z-10 bg-white/10 hover:bg-white/20 text-white px-6 py-3.5 rounded-2xl transition-colors font-black text-xs backdrop-blur-md border border-white/15 w-full md:w-auto cursor-pointer"
+        >
+          Keluar Sesi
+        </button>
+      </header>
+
+      {/* Unified Tabbed Manager (Siswa & Draft, Absensi, Akun Wali, Kalender Libur) */}
+      <section className="h-162.5 sm:h-175">
+        <ActivityTabs
+          attendances={attendances}
+          parents={parents}
+          students={activeStudents}
+          draftStudents={draftStudents}
+          holidays={holidays}
+          refreshData={fetchData}
+          onSelectStudent={(student) => setEditingStudent(student)}
+        />
+      </section>
 
       {editingStudent && (
         <StudentModal
