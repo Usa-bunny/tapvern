@@ -1,78 +1,96 @@
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { NextRequest, NextResponse } from "next/server";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
 );
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { event, uid } = body;
-
+    const { uid } = await req.json();
     if (!uid) {
-      return NextResponse.json({ action: "attendance_failed", message: "UID Kosong" });
+      return NextResponse.json({ action: "attendance_failed", message: "UID Tidak Valid" }, { status: 400 });
     }
 
-    // --- SKENARIO ABSEN ---
-    if (event === "rfid_scan") {
-      // 1. Cari di tabel 'students' (bukan 'users' lagi)
-      const { data: student, error: studentError } = await supabase
-        .from("students") 
-        .select("*")
-        .eq("rfid_uid", uid)
-        .single();
+    // 1. Cek apakah kartu sudah ada di database
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("*")
+      .eq("rfid_uid", uid)
+      .maybeSingle();
 
-      if (studentError || !student) {
-        return NextResponse.json({ action: "attendance_failed", message: "Tdk Terdaftar" });
+    if (studentError) {
+      console.error("DB Error (Select Student):", studentError);
+      return NextResponse.json({ action: "attendance_failed", message: "Database Error" }, { status: 500 });
+    }
+
+    // 2. JIKA KARTU BELUM ADA SAMA SEKALI DI DATABASE
+    if (!student) {
+      // Wajib gunakan .select().single() agar error/suksesnya terdeteksi pasti oleh Supabase
+      const { error: insertDraftError } = await supabase.from("students").insert([
+        { rfid_uid: uid, name: "Kartu Baru", is_draft: true }
+      ]).select().single();
+
+      if (insertDraftError) {
+        console.error("DB Error (Insert Draft):", insertDraftError);
+        return NextResponse.json({ action: "attendance_failed", message: "Gagal Simpan Draft" }, { status: 500 });
       }
 
-      const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
+      const shortUid = uid.substring(0, 6).toUpperCase();
+      return NextResponse.json({ action: "waiting_registration", message: `KODE: ${shortUid}` }, { status: 200 });
+    }
 
-      // 2. Cek apakah sudah absen hari ini
-      const { data: history } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("student_id", student.id) // Ubah user_id jadi student_id
-        .gte("created_at", `${today}T00:00:00+07:00`)
-        .limit(1);
+    // 3. JIKA KARTU ADA TAPI MASIH STATUS DRAFT
+    if (student.is_draft) {
+      const shortUid = uid.substring(0, 6).toUpperCase();
+      return NextResponse.json({ action: "waiting_registration", message: `KODE: ${shortUid}` }, { status: 200 });
+    }
 
-      if (history && history.length > 0) {
-        return NextResponse.json({ action: "already_attended", name: student.name, open_door: true, duration: 3 });
-      }
-
-      // 3. Masukkan data absen
-      await supabase
-        .from("attendance")
-        .insert([{ student_id: student.id, status: "Hadir" }]); // Ubah user_id jadi student_id
-
-      return NextResponse.json({ action: "attendance_success", name: student.name, duration: 5 });
-    } 
+    // 4. JIKA KARTU AKTIF, CEK ABSENSI HARI INI
+    const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
     
-    // --- SKENARIO PENDAFTARAN KARTU BARU ---
-    else if (event === "register_card") {
-      // 1. Pastikan kartu belum dipakai siswa lain di tabel 'students'
-      const { data: existingUser } = await supabase
-        .from("students")
-        .select("id")
-        .eq("rfid_uid", uid)
-        .single();
+    // PENTING: Gunakan limit(1) dan ambil array index [0] agar tidak error saat ada data kembar
+    const { data: attendanceData, error: attError } = await supabase
+      .from("attendance")
+      .select("id, status")
+      .eq("student_id", student.id)
+      .gte("created_at", `${today}T00:00:00+07:00`)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-      if (existingUser) {
-        return NextResponse.json({ action: "register_failed", message: "UID Terpakai" });
-      }
-
-      // 2. Kirim ke ruang tunggu temp_scans
-      await supabase.from("temp_scans").upsert({ id: 1, uid: uid });
-
-      // 3. Suruh ESP32 menunggu admin isi form
-      return NextResponse.json({ action: "waiting_registration", name: "Silakan isi Web" });
+    if (attError) {
+      console.error("DB Error (Check Attendance):", attError);
+      return NextResponse.json({ action: "attendance_failed", message: "Error Cek Absen" }, { status: 500 });
     }
 
-    return NextResponse.json({ action: "attendance_failed", message: "Event Invalid" });
-  } catch (error) {
-    console.error("API Scan Error:", error);
+    const attendance = attendanceData?.[0];
+
+    // 5. JIKA SUDAH ADA STATUS HARI INI (HADIR/SAKIT/IZIN)
+    if (attendance) {
+      if (attendance.status === "Sakit") {
+        return NextResponse.json({ action: "attendance_failed", message: "Status: SAKIT" }, { status: 200 });
+      } else if (attendance.status === "Izin") {
+        return NextResponse.json({ action: "attendance_failed", message: "Status: IZIN" }, { status: 200 });
+      } else {
+        return NextResponse.json({ action: "already_attended", name: student.name, duration: 3, open_door: true }, { status: 200 });
+      }
+    }
+
+    // 6. JIKA BELUM ADA ABSENSI SAMA SEKALI HARI INI, BUAT BARU (HADIR)
+    const { error: insertError } = await supabase.from("attendance").insert([
+      { student_id: student.id, status: "Hadir" }
+    ]);
+
+    if (insertError) {
+      console.error("DB Error (Insert Attendance):", insertError);
+      return NextResponse.json({ action: "attendance_failed", message: "Gagal Absen" }, { status: 500 });
+    }
+
+    return NextResponse.json({ action: "attendance_success", name: student.name, duration: 5 }, { status: 200 });
+
+  } catch (error: any) {
+    console.error("Server Catch Error:", error);
     return NextResponse.json({ action: "attendance_failed", message: "Server Error" }, { status: 500 });
   }
 }

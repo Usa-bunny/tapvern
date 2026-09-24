@@ -3,13 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import {
-  Student,
-  AttendanceRecord,
-  DeviceCommand,
-  TempScan,
-  ParentProfile,
-} from "@/types/admin";
+import { Student, AttendanceRecord, ParentProfile } from "@/types/admin";
 import { ActivityTabs } from "@/components/admin/ActivityTabs";
 import { StudentModal } from "@/components/admin/StudentModal";
 
@@ -21,14 +15,8 @@ const supabase = createClient(
 export default function AdminDashboard() {
   const router = useRouter();
   const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const [newUid, setNewUid] = useState<string | null>(null);
-  const [inputName, setInputName] = useState("");
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [doorDuration, setDoorDuration] = useState<number>(5);
 
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
-  const [commands, setCommands] = useState<DeviceCommand[]>([]);
-  const [scans, setScans] = useState<TempScan[]>([]);
   const [draftStudents, setDraftStudents] = useState<Student[]>([]);
   const [activeStudents, setActiveStudents] = useState<Student[]>([]);
   const [parents, setParents] = useState<ParentProfile[]>([]);
@@ -42,29 +30,20 @@ export default function AdminDashboard() {
       .toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" })
       .split(" ")[0];
 
-    const [attData, cmdData, scanData, studentData, parentData] =
-      await Promise.all([
-        supabase
-          .from("attendance")
-          .select(`id, created_at, status, students (name, rfid_uid)`)
-          .gte("created_at", `${today}T00:00:00+07:00`)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("device_commands")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase.from("temp_scans").select("*"),
-        supabase
-          .from("students")
-          .select("*, profiles!students_parent_id_fkey(name, email)")
-          .order("created_at", { ascending: false }),
-        supabase.from("profiles").select("*").eq("role", "parent"),
-      ]);
+    const [attData, studentData, parentData] = await Promise.all([
+      supabase
+        .from("attendance")
+        .select(`id, created_at, status, students (name, rfid_uid)`)
+        .gte("created_at", `${today}T00:00:00+07:00`)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("students")
+        .select("*, profiles (name, email)")
+        .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("*").eq("role", "parent"),
+    ]);
 
     if (attData.data) setAttendances(attData.data as any);
-    if (cmdData.data) setCommands(cmdData.data);
-    if (scanData.data) setScans(scanData.data);
     if (parentData.data) setParents(parentData.data);
     if (studentData.data) {
       setDraftStudents(studentData.data.filter((s: any) => s.is_draft));
@@ -87,7 +66,9 @@ export default function AdminDashboard() {
       if (profile?.role === "admin") {
         setIsAdminAuth(true);
         fetchData();
-      } else router.push("/parent");
+      } else {
+        router.push("/parent");
+      }
     };
     checkUser();
   }, [router, fetchData]);
@@ -98,17 +79,7 @@ export default function AdminDashboard() {
       .channel("admin_sync")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "temp_scans" },
-        (p: any) => p.new?.uid && setNewUid(p.new.uid),
-      )
-      .on(
-        "postgres_changes",
         { event: "*", schema: "public", table: "attendance" },
-        () => fetchData(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "device_commands" },
         () => fetchData(),
       )
       .on(
@@ -138,47 +109,18 @@ export default function AdminDashboard() {
     });
   }, [activeStudents, searchActive, filterParent]);
 
-  const handleCommand = async (action: string, customDuration: number = 5) => {
-    await fetch("/api/command", {
-      method: "POST",
-      body: JSON.stringify({ action, duration: customDuration }),
-    });
-    if (action === "register_mode") setIsRegisterMode(true);
-    if (action === "normal_mode") {
-      setIsRegisterMode(false);
-      setNewUid(null);
-    }
-  };
-
-  const handleSaveDraft = async () => {
-    if (!inputName || !newUid) return;
-    const res = await fetch("/api/students", {
-      method: "POST",
-      body: JSON.stringify({ rfid_uid: newUid, name: inputName }),
-    });
-    if (res.ok) {
-      setNewUid(null);
-      setInputName("");
-      setIsRegisterMode(false);
-      await fetch("/api/command", {
-        method: "POST",
-        body: JSON.stringify({ action: "register_success", name: inputName }),
-      });
-    }
-  };
-
   const handleUpdateStudent = async (studentData: any, parentAction: any) => {
     try {
       const { error: stuError } = await supabase
         .from("students")
         .update({
-          name: studentData.name,
-          nisn: studentData.nisn,
-          gender: studentData.gender,
-          class_name: studentData.class_name,
-          major: studentData.major,
-          domicile: studentData.domicile,
-          is_draft: false,
+          name: studentData.name || "Siswa Baru",
+          nisn: studentData.nisn || null,
+          gender: studentData.gender || null,
+          class_name: studentData.class_name || null,
+          domicile: studentData.domicile || null,
+          is_draft: studentData.is_draft,
+          updated_at: new Date().toISOString(), // <-- Ini ditambahkan
         })
         .eq("id", studentData.id);
 
@@ -215,7 +157,7 @@ export default function AdminDashboard() {
       setEditingStudent(null);
       fetchData();
     } catch (e: any) {
-      alert(e.message || "Gagal menyimpan");
+      alert(e.message || "Gagal menyimpan data");
     }
   };
 
@@ -235,79 +177,19 @@ export default function AdminDashboard() {
               Admin Console
             </h1>
             <p className="text-gray-500 font-medium mt-1">
-              Manajemen Perangkat & Pengguna
+              Manajemen Pengguna & Laporan Kehadiran
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 md:gap-4 items-center w-full lg:w-auto">
-            <button
-              onClick={() =>
-                handleCommand(isRegisterMode ? "normal_mode" : "register_mode")
-              }
-              className={`flex-1 lg:flex-none px-6 py-3.5 rounded-2xl font-extrabold text-white transition-all shadow-sm ${isRegisterMode ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"}`}
-            >
-              {isRegisterMode ? "Tutup Register" : "Mode Daftar"}
-            </button>
-            <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-2xl border border-emerald-100 w-full lg:w-auto">
-              <input
-                type="number"
-                min="1"
-                max="60"
-                value={doorDuration}
-                onChange={(e) => setDoorDuration(Number(e.target.value))}
-                className="w-16 px-2 py-2 rounded-xl border-none text-center font-bold text-emerald-900 outline-none bg-white shadow-sm"
-              />
-              <span className="text-xs font-bold text-emerald-800 pr-2">
-                Detik
-              </span>
-              <button
-                onClick={() => handleCommand("open_door", doorDuration)}
-                className="flex-1 lg:flex-none bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold transition-colors shadow-sm"
-              >
-                Buka Pintu
-              </button>
-            </div>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push("/login");
-              }}
-              className="bg-gray-100 text-gray-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-gray-200 transition-colors w-full lg:w-auto"
-            >
-              Keluar
-            </button>
-          </div>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push("/login");
+            }}
+            className="bg-gray-100 text-gray-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-gray-200 transition-colors w-full lg:w-auto"
+          >
+            Keluar
+          </button>
         </header>
-
-        {newUid && isRegisterMode && (
-          <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-6 sm:p-8 rounded-4xl text-white flex flex-col md:flex-row gap-6 items-center shadow-lg shadow-blue-500/20 animate-in fade-in slide-in-from-top-4">
-            <div className="flex-1 w-full text-center md:text-left">
-              <h2 className="text-2xl font-extrabold mb-2">
-                Kartu Ditemukan!{" "}
-                <span className="font-mono bg-white/20 px-3 py-1 rounded-lg ml-2">
-                  {newUid}
-                </span>
-              </h2>
-              <p className="text-blue-100 font-medium">
-                Masukkan nama untuk menyimpan ke draft.
-              </p>
-            </div>
-            <div className="flex w-full md:w-auto gap-3 flex-col sm:flex-row">
-              <input
-                type="text"
-                placeholder="Nama Siswa..."
-                value={inputName}
-                onChange={(e) => setInputName(e.target.value)}
-                className="px-5 py-3.5 rounded-2xl text-gray-900 outline-none w-full sm:w-64 font-bold"
-              />
-              <button
-                onClick={handleSaveDraft}
-                className="bg-white text-blue-700 px-8 py-3.5 rounded-2xl font-extrabold hover:bg-blue-50 transition-colors shadow-sm"
-              >
-                Simpan Draft
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
           <div className="lg:col-span-4 space-y-6 flex flex-col">
@@ -317,9 +199,12 @@ export default function AdminDashboard() {
                   Draft Register
                 </h2>
                 <span className="bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-lg text-xs font-bold">
-                  {draftStudents.length} Menunggu
+                  {draftStudents.length} Kartu Baru
                 </span>
               </div>
+              <p className="text-xs text-gray-500 font-medium mb-3">
+                Siswa melakukan tap kartu di alat, lalu klik "Lengkapi" di sini.
+              </p>
               <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {draftStudents.map((student) => (
                   <div
@@ -350,25 +235,19 @@ export default function AdminDashboard() {
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
-                  placeholder="Cari siswa..."
+                  placeholder="Cari..."
                   value={searchActive}
                   onChange={(e) => setSearchActive(e.target.value)}
-                  className="flex-1 bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-600 placeholder:text-gray-500"
+                  className="flex-1 bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold outline-none focus:border-blue-600"
                 />
                 <select
                   value={filterParent}
                   onChange={(e) => setFilterParent(e.target.value)}
-                  className="bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-600 cursor-pointer"
+                  className="bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold outline-none focus:border-blue-600 cursor-pointer"
                 >
-                  <option value="all" className="font-bold">
-                    Semua Wali
-                  </option>
-                  <option value="yes" className="font-bold">
-                    Tertaut
-                  </option>
-                  <option value="no" className="font-bold">
-                    Tanpa Wali
-                  </option>
+                  <option value="all">Semua Wali</option>
+                  <option value="yes">Tertaut</option>
+                  <option value="no">Tanpa Wali</option>
                 </select>
               </div>
               <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -379,7 +258,7 @@ export default function AdminDashboard() {
                     className="flex justify-between items-center bg-white hover:bg-blue-50 p-4 rounded-2xl transition-colors cursor-pointer border border-gray-100 hover:border-blue-200 group"
                   >
                     <div className="flex flex-col gap-1">
-                      <p className="font-bold text-gray-700 group-hover:text-blue-700 transition-colors">
+                      <p className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
                         {student.name}
                       </p>
                       <div className="flex gap-2">
@@ -387,7 +266,7 @@ export default function AdminDashboard() {
                           {student.class_name || "Tanpa Kelas"}
                         </span>
                         {student.parent_id && (
-                          <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1 rounded-md font-bold flex items-center gap-1">
+                          <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1 rounded-md font-bold">
                             Wali Aktif
                           </span>
                         )}
@@ -402,9 +281,8 @@ export default function AdminDashboard() {
           <section className="lg:col-span-8 h-full">
             <ActivityTabs
               attendances={attendances}
-              commands={commands}
-              scans={scans}
               parents={parents}
+              students={activeStudents}
             />
           </section>
         </div>

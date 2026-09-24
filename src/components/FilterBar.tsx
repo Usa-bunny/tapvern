@@ -3,12 +3,12 @@ interface FilterBarProps {
   setSearchQuery: (val: string) => void;
   filterClass: string;
   setFilterClass: (val: string) => void;
-  filterMajor: string;
-  setFilterMajor: (val: string) => void;
+  filterDomicile: string;
+  setFilterDomicile: (val: string) => void;
   filterGender: string;
   setFilterGender: (val: string) => void;
   uniqueClasses: string[];
-  uniqueMajors: string[];
+  uniqueDomiciles: string[];
   onReset: () => void;
 }
 
@@ -42,11 +42,11 @@ export const FilterBar = (props: FilterBarProps) => {
 
         <select 
           className="px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 cursor-pointer font-bold text-gray-900"
-          value={props.filterMajor} 
-          onChange={(e) => props.setFilterMajor(e.target.value)}
+          value={props.filterDomicile} 
+          onChange={(e) => props.setFilterDomicile(e.target.value)}
         >
-          <option value="" className="font-bold">Semua Jurusan</option>
-          {props.uniqueMajors.map(m => <option key={m} value={m} className="font-bold">{m}</option>)}
+          <option value="" className="font-bold">Semua Domisili</option>
+          {props.uniqueDomiciles.map(d => <option key={d} value={d} className="font-bold">{d}</option>)}
         </select>
 
         <select 

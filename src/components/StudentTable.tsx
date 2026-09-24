@@ -2,7 +2,7 @@ import { ProcessedStudent, SortConfig } from "@/types";
 
 interface StudentTableProps {
   data: ProcessedStudent[];
-  sortConfig: SortConfig;
+  sortConfig: SortConfig | null;
   onSort: (key: keyof ProcessedStudent) => void;
 }
 
@@ -36,19 +36,13 @@ export const StudentTable = ({ data, sortConfig, onSort }: StudentTableProps) =>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-              <th 
-                className="p-5 font-bold cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => onSort("name")}
-              >
+              <th className="p-5 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => onSort("name")}>
                 Nama Siswa {renderSortIcon("name")}
               </th>
-              <th className="p-5 font-bold text-center">Kelas & Jurusan</th>
-              <th className="p-5 font-bold">Domisili</th>
+              <th className="p-5 font-bold text-center">Kelas</th>
+              <th className="p-5 font-bold text-center">Domisili</th>
               <th className="p-5 font-bold text-center">Status Kehadiran</th>
-              <th 
-                className="p-5 font-bold text-center cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => onSort("rawTime")}
-              >
+              <th className="p-5 font-bold text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => onSort("rawTime")}>
                 Waktu Masuk {renderSortIcon("rawTime")}
               </th>
             </tr>
@@ -62,21 +56,29 @@ export const StudentTable = ({ data, sortConfig, onSort }: StudentTableProps) =>
                 </td>
                 <td className="p-5 text-center">
                   <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-semibold">
-                    {student.class_name || "-"} {student.major || ""}
+                    {student.class_name || "-"}
                   </span>
                 </td>
-                <td className="p-5 text-gray-600 text-sm font-medium">
+                <td className="p-5 text-center text-gray-600 text-sm font-medium">
                   {student.domicile || "-"}
                 </td>
                 <td className="p-5 text-center">
-                  {student.isPresent ? (
+                  {!student.status ? (
+                    <span className="bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-sm font-bold border border-rose-100 shadow-sm">
+                      Belum Absen
+                    </span>
+                  ) : student.status === "Hadir" ? (
                     <span className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-bold border border-emerald-200 shadow-sm">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                       Hadir
                     </span>
+                  ) : student.status === "Sakit" ? (
+                    <span className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-1.5 rounded-full text-sm font-bold border border-amber-200 shadow-sm">
+                      Sakit
+                    </span>
                   ) : (
-                    <span className="bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-sm font-bold border border-rose-100 shadow-sm">
-                      Belum Absen
+                    <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-bold border border-blue-200 shadow-sm">
+                      Izin
                     </span>
                   )}
                 </td>

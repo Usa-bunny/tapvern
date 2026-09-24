@@ -1,140 +1,143 @@
 import { useState, useMemo } from "react";
-import {
-  AttendanceRecord,
-  DeviceCommand,
-  TempScan,
-  ParentProfile,
-} from "@/types/admin";
 
-interface Props {
-  attendances: AttendanceRecord[];
-  commands: DeviceCommand[];
-  scans: TempScan[];
-  parents: ParentProfile[];
+interface ActivityTabsProps {
+  attendances: any[];
+  parents: any[];
+  students: any[];
 }
 
-export const ActivityTabs = ({
-  attendances,
-  commands,
-  scans,
-  parents,
-}: Props) => {
-  const [activeTab, setActiveTab] = useState<
-    "attendance" | "parents" | "commands"
-  >("attendance");
+export const ActivityTabs = ({ attendances, parents, students }: ActivityTabsProps) => {
+  const [activeTab, setActiveTab] = useState<"attendance" | "parents">("attendance");
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredAttendances = useMemo(() => {
+    if (!searchQuery) return attendances;
     return attendances.filter((a) =>
-      a.students?.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      a.students?.name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [attendances, searchQuery]);
 
   const filteredParents = useMemo(() => {
-    return parents.filter(
-      (p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.email.toLowerCase().includes(searchQuery.toLowerCase()),
+    if (!searchQuery) return parents;
+    return parents.filter((p) =>
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.email?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [parents, searchQuery]);
 
   return (
-    <div className="bg-white rounded-4xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-150">
-      <div className="flex border-b border-gray-100">
+    <div className="bg-white rounded-4xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
+      <div className="flex border-b border-gray-100 px-4 pt-4 shrink-0">
         <button
-          onClick={() => setActiveTab("attendance")}
-          className={`flex-1 py-4 text-sm font-bold transition-colors ${activeTab === "attendance" ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50" : "text-gray-500 hover:bg-gray-50"}`}
+          onClick={() => { setActiveTab("attendance"); setSearchQuery(""); }}
+          className={`flex-1 pb-4 text-sm font-extrabold transition-colors border-b-2 ${
+            activeTab === "attendance" ? "border-blue-600 text-blue-700" : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
         >
           Absensi Masuk
         </button>
         <button
-          onClick={() => setActiveTab("parents")}
-          className={`flex-1 py-4 text-sm font-bold transition-colors ${activeTab === "parents" ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50" : "text-gray-500 hover:bg-gray-50"}`}
+          onClick={() => { setActiveTab("parents"); setSearchQuery(""); }}
+          className={`flex-1 pb-4 text-sm font-extrabold transition-colors border-b-2 ${
+            activeTab === "parents" ? "border-blue-600 text-blue-700" : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
         >
           Data Akun Wali
         </button>
-        <button
-          onClick={() => setActiveTab("commands")}
-          className={`flex-1 py-4 text-sm font-bold transition-colors ${activeTab === "commands" ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50" : "text-gray-500 hover:bg-gray-50"}`}
-        >
-          Log Perangkat
-        </button>
       </div>
 
-      {(activeTab === "attendance" || activeTab === "parents") && (
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+      <div className="p-6 flex flex-col h-full overflow-hidden">
+        <div className="mb-6 shrink-0">
           <input
             type="text"
-            placeholder={`Cari data ${activeTab === "attendance" ? "absensi" : "wali"}...`}
+            placeholder={activeTab === "attendance" ? "Cari nama siswa di absensi..." : "Cari nama atau username wali..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-50 border-2 border-gray-300 p-2.5 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-600 placeholder:text-gray-500"
+            className="w-full bg-gray-50 border-2 border-gray-200 p-3.5 rounded-xl text-sm font-bold outline-none focus:border-blue-600 focus:bg-white transition-colors placeholder:text-gray-400"
           />
         </div>
-      )}
 
-      <div className="overflow-y-auto flex-1 p-4 custom-scrollbar">
-        {activeTab === "attendance" && (
-          <table className="w-full text-left">
-            <tbody className="divide-y divide-gray-50">
-              {filteredAttendances.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50/80">
-                  <td className="p-3 text-sm text-gray-500 font-medium">
-                    {new Date(log.created_at).toLocaleTimeString("id-ID")}
-                  </td>
-                  <td className="p-3 font-bold text-gray-900">
-                    {log.students?.name || "Unknown"}
-                  </td>
-                  <td className="p-3">
-                    <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-100">
-                      {log.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+          {activeTab === "attendance" && (
+            <>
+              {filteredAttendances.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-gray-400 font-bold">Belum ada data absensi.</p>
+                </div>
+              ) : (
+                filteredAttendances.map((record) => (
+                  <div key={record.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
+                        {new Date(record.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-gray-900">{record.students?.name}</p>
+                      </div>
+                    </div>
+                    <div>
+                      {record.status === "Hadir" && (
+                        <span className="bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-200 shadow-sm">Hadir</span>
+                      )}
+                      {record.status === "Sakit" && (
+                        <span className="bg-amber-100 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-200 shadow-sm">Sakit</span>
+                      )}
+                      {record.status === "Izin" && (
+                        <span className="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-200 shadow-sm">Izin</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
 
-        {activeTab === "parents" && (
-          <div className="space-y-3">
-            {filteredParents.map((parent) => (
-              <div
-                key={parent.id}
-                className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-1"
-              >
-                <span className="font-bold text-gray-900">{parent.name}</span>
-                <span className="text-sm font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded-md w-fit">
-                  {parent.email.split("@")[0]}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "commands" && (
-          <table className="w-full text-left">
-            <tbody className="divide-y divide-gray-50">
-              {commands.map((cmd) => (
-                <tr key={cmd.id} className="hover:bg-gray-50/80">
-                  <td className="p-3 text-sm text-gray-500 font-medium">
-                    {new Date(cmd.created_at).toLocaleTimeString("id-ID")}
-                  </td>
-                  <td className="p-3 font-bold text-gray-900 uppercase text-xs">
-                    {cmd.action}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2.5 py-1 rounded-md text-xs font-bold border ${cmd.status === "executed" || cmd.status === "executed_via_mqtt" ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-yellow-50 text-yellow-700 border-yellow-100"}`}
-                    >
-                      {cmd.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {activeTab === "parents" && (
+            <>
+              {filteredParents.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-gray-400 font-bold">Belum ada data akun wali.</p>
+                </div>
+              ) : (
+                filteredParents.map((parent) => {
+                  const children = students.filter(s => s.parent_id === parent.id);
+                  return (
+                    <div key={parent.id} className="bg-white p-5 rounded-2xl border-2 border-indigo-50 shadow-sm hover:border-indigo-100 transition-colors">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-black text-lg text-gray-900">{parent.name}</h3>
+                          <p className="text-sm font-bold text-gray-500 font-mono mt-0.5">@{parent.email.split('@')[0]}</p>
+                        </div>
+                        <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200">
+                          {children.length} Anak Tertaut
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 mt-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Daftar Anak Siswa</p>
+                        {children.length === 0 ? (
+                          <p className="text-sm text-gray-500 font-medium italic">Belum ada siswa yang ditautkan ke akun ini.</p>
+                        ) : (
+                          children.map(child => (
+                            <div key={child.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                              <div>
+                                <p className="font-bold text-gray-800 text-sm">{child.name}</p>
+                                <p className="text-xs text-gray-500 font-mono mt-0.5">NISN: {child.nisn || "-"}</p>
+                              </div>
+                              <span className="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-1 rounded-md">
+                                {child.class_name || "Tanpa Kelas"}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -18,8 +18,8 @@ export interface ProcessedStudent extends Student {
   isPresent: boolean;
   time: string;
   rawTime: number;
+  status: string | null;
 }
-
 export type SortConfig = {
   key: keyof ProcessedStudent;
   direction: "asc" | "desc";

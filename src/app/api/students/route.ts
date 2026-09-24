@@ -14,8 +14,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     }
 
-    // Insert ke tabel 'students'. 
-    // Status 'is_draft' otomatis menjadi true berkat pengaturan default di database
     const { error } = await supabase
       .from('students')
       .insert([{ rfid_uid, name }]);

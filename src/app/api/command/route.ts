@@ -15,7 +15,6 @@ const MQTT_TOPIC = "iot/absensi/command";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // Ambil variable name juga untuk notifikasi di LCD
     const { action, duration, name, message } = body;
 
     if (!action) {
@@ -33,7 +32,6 @@ export async function POST(req: NextRequest) {
       },
     ]);
 
-    // Masukkan variable name/message ke payload MQTT
     const payload = JSON.stringify({
       action,
       duration: duration || 5,
@@ -49,7 +47,7 @@ export async function POST(req: NextRequest) {
     await new Promise<void>((resolve, reject) => {
       client.on("connect", () => {
         client.publish(MQTT_TOPIC, payload, (err) => {
-          client.end(); // Tutup koneksi agar serverless hemat memori
+          client.end();
           if (err) reject(err);
           else resolve();
         });

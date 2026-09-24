@@ -23,7 +23,7 @@ export default function PublicDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterGender, setFilterGender] = useState("");
   const [filterClass, setFilterClass] = useState("");
-  const [filterMajor, setFilterMajor] = useState("");
+  const [filterDomicile, setFilterDomicile] = useState("");
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
   const fetchData = useCallback(async () => {
@@ -74,7 +74,7 @@ export default function PublicDashboard() {
   const handleResetFilters = () => {
     setSearchQuery("");
     setFilterClass("");
-    setFilterMajor("");
+    setFilterDomicile("");
     setFilterGender("");
     setSortConfig(null);
   };
@@ -91,8 +91,8 @@ export default function PublicDashboard() {
     if (filterClass) {
       filtered = filtered.filter(s => s.class_name === filterClass);
     }
-    if (filterMajor) {
-      filtered = filtered.filter(s => s.major === filterMajor);
+    if (filterDomicile) {
+      filtered = filtered.filter(s => s.domicile === filterDomicile);
     }
 
     let mappedData: ProcessedStudent[] = filtered.map((student) => {
@@ -100,6 +100,7 @@ export default function PublicDashboard() {
       return {
         ...student,
         isPresent: !!todayRecord,
+        status: todayRecord ? todayRecord.status : null,
         time: todayRecord ? new Date(todayRecord.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-",
         rawTime: todayRecord ? new Date(todayRecord.created_at).getTime() : 0,
       };
@@ -120,10 +121,10 @@ export default function PublicDashboard() {
     }
 
     return mappedData;
-  }, [students, attendances, searchQuery, filterGender, filterClass, filterMajor, sortConfig]);
+  }, [students, attendances, searchQuery, filterGender, filterClass, filterDomicile, sortConfig]);
 
   const uniqueClasses = Array.from(new Set(students.map(s => s.class_name).filter(Boolean))) as string[];
-  const uniqueMajors = Array.from(new Set(students.map(s => s.major).filter(Boolean))) as string[];
+  const uniqueDomiciles = Array.from(new Set(students.map(s => s.domicile).filter(Boolean))) as string[];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 md:p-10 font-sans selection:bg-blue-200">
@@ -137,9 +138,9 @@ export default function PublicDashboard() {
             <FilterBar 
               searchQuery={searchQuery} setSearchQuery={setSearchQuery}
               filterClass={filterClass} setFilterClass={setFilterClass}
-              filterMajor={filterMajor} setFilterMajor={setFilterMajor}
+              filterDomicile={filterDomicile} setFilterDomicile={setFilterDomicile}
               filterGender={filterGender} setFilterGender={setFilterGender}
-              uniqueClasses={uniqueClasses} uniqueMajors={uniqueMajors}
+              uniqueClasses={uniqueClasses} uniqueDomiciles={uniqueDomiciles}
               onReset={handleResetFilters}
             />
             
