@@ -80,3 +80,19 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { parent_id } = await req.json()
+    if (!parent_id) return NextResponse.json({ error: "ID tidak ditemukan" }, { status: 400 })
+
+    await supabase.from('students').update({ parent_id: null }).eq('parent_id', parent_id)
+
+    const { error: authError } = await supabase.auth.admin.deleteUser(parent_id)
+    if (authError) throw authError
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

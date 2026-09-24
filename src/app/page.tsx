@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { FilterBar } from "@/components/FilterBar";
 import { StudentTable } from "@/components/StudentTable";
 import { LoadingState, ErrorState } from "@/components/ui/States";
+import { ExportModal } from "@/components/ExportModal";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +17,7 @@ const supabase = createClient(
 export default function PublicDashboard() {
   const [students, setStudents] = useState<Student[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
   
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +28,8 @@ export default function PublicDashboard() {
   const [filterDomicile, setFilterDomicile] = useState("");
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -33,9 +37,10 @@ export default function PublicDashboard() {
       
       const today = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
 
-      const [studentsRes, attendanceRes] = await Promise.all([
+      const [studentsRes, attendanceRes, holidaysRes] = await Promise.all([
         supabase.from("students").select("*").eq("is_draft", false),
-        supabase.from("attendance").select("student_id, created_at, status").gte("created_at", `${today}T00:00:00+07:00`)
+        supabase.from("attendance").select("student_id, created_at, status").gte("created_at", `${today}T00:00:00+07:00`),
+        supabase.from("holidays").select("date").eq("date", today).maybeSingle()
       ]);
 
       if (studentsRes.error) throw studentsRes.error;
@@ -43,6 +48,7 @@ export default function PublicDashboard() {
 
       setStudents(studentsRes.data || []);
       setAttendances(attendanceRes.data || []);
+      if (holidaysRes.data) setHolidays([holidaysRes.data]);
     } catch (err: any) {
       setError(err.message || "Gagal terhubung ke database. Silakan periksa koneksi Anda.");
     } finally {
@@ -79,7 +85,16 @@ export default function PublicDashboard() {
     setSortConfig(null);
   };
 
+  const uniqueClasses = Array.from(new Set(students.map(s => s.class_name).filter(Boolean))) as string[];
+  const uniqueDomiciles = Array.from(new Set(students.map(s => s.domicile).filter(Boolean))) as string[];
+
   const processedData = useMemo(() => {
+    const todayStr = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" }).split(" ")[0];
+    const todayDate = new Date(`${todayStr}T00:00:00+07:00`);
+    const dayOfWeek = todayDate.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isHoliday = isWeekend || holidays.length > 0;
+
     let filtered = students;
 
     if (searchQuery) {
@@ -97,10 +112,16 @@ export default function PublicDashboard() {
 
     let mappedData: ProcessedStudent[] = filtered.map((student) => {
       const todayRecord = attendances.find((a) => a.student_id === student.id);
+      
+      let computedStatus = todayRecord ? todayRecord.status : null;
+      if (!todayRecord && isHoliday) {
+        computedStatus = "Libur";
+      }
+
       return {
         ...student,
         isPresent: !!todayRecord,
-        status: todayRecord ? todayRecord.status : null,
+        status: computedStatus,
         time: todayRecord ? new Date(todayRecord.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-",
         rawTime: todayRecord ? new Date(todayRecord.created_at).getTime() : 0,
       };
@@ -121,15 +142,22 @@ export default function PublicDashboard() {
     }
 
     return mappedData;
-  }, [students, attendances, searchQuery, filterGender, filterClass, filterDomicile, sortConfig]);
-
-  const uniqueClasses = Array.from(new Set(students.map(s => s.class_name).filter(Boolean))) as string[];
-  const uniqueDomiciles = Array.from(new Set(students.map(s => s.domicile).filter(Boolean))) as string[];
+  }, [students, attendances, holidays, searchQuery, filterGender, filterClass, filterDomicile, sortConfig]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 md:p-10 font-sans selection:bg-blue-200">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <Header />
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Header />
+          <button 
+            onClick={() => setIsExportModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 border border-emerald-500 w-full sm:w-auto justify-center"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Export Laporan
+          </button>
+        </div>
         
         {error ? (
           <ErrorState message={error} onRetry={fetchData} />
@@ -156,6 +184,12 @@ export default function PublicDashboard() {
           </>
         )}
       </div>
+
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+        uniqueClasses={uniqueClasses} 
+      />
     </div>
   );
 }

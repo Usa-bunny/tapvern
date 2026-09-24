@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { Student, ParentProfile } from "@/types/admin"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 interface Props {
   student: Student
@@ -19,13 +25,23 @@ export const StudentModal = ({ student, parents, onClose, onSubmit }: Props) => 
     domicile: student.domicile || "",
   })
 
-  const [parentMode, setParentMode] = useState<"none" | "new" | "link" | "edit">(student.parent_id ? "edit" : "none")
+  const [classes, setClasses] = useState<{ id: string, name: string }[]>([])
+  
+  const [parentMode, setParentMode] = useState<"none" | "new" | "link" | "edit" | "unlink">(student.parent_id ? "edit" : "none")
   const [parentUsername, setParentUsername] = useState(student.profiles?.email?.split('@')[0] || "")
   const [parentName, setParentName] = useState(student.profiles?.name || "")
   const [parentPassword, setParentPassword] = useState("")
   const [selectedParentId, setSelectedParentId] = useState("")
   
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      const { data } = await supabase.from('classes').select('id, name').order('name', { ascending: true })
+      if (data) setClasses(data)
+    }
+    fetchClasses()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +53,7 @@ export const StudentModal = ({ student, parents, onClose, onSubmit }: Props) => 
     if (parentMode === "new") parentAction = { type: 'create', name: parentName, username: parentUsername, password: parentPassword }
     else if (parentMode === "link") parentAction = { type: 'link', id: selectedParentId }
     else if (parentMode === "edit") parentAction = { type: 'update', id: student.parent_id, name: parentName, username: parentUsername, password: parentPassword }
+    else if (parentMode === "unlink") parentAction = { type: 'unlink' }
 
     await onSubmit({ ...formData, is_draft: !isComplete }, parentAction)
     setIsSubmitting(false)
@@ -80,8 +97,17 @@ export const StudentModal = ({ student, parents, onClose, onSubmit }: Props) => 
             </div>
             
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-gray-900">Kelas (Misal: XII RPL B)</label>
-              <input type="text" value={formData.class_name} onChange={e => setFormData({...formData, class_name: e.target.value})} className="w-full bg-white border-2 border-gray-300 p-3 rounded-xl outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200 text-gray-900 font-bold shadow-sm" placeholder="Contoh: XII RPL B" />
+              <label className="text-sm font-bold text-gray-900">Kelas</label>
+              <select 
+                value={formData.class_name} 
+                onChange={e => setFormData({...formData, class_name: e.target.value})} 
+                className="w-full bg-white border-2 border-gray-300 p-3 rounded-xl outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200 text-gray-900 font-bold shadow-sm cursor-pointer"
+              >
+                <option value="">Pilih Kelas...</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -91,23 +117,41 @@ export const StudentModal = ({ student, parents, onClose, onSubmit }: Props) => 
           </div>
 
           <div className="border-2 border-indigo-200 rounded-2xl overflow-hidden shadow-sm bg-white">
-            <div className="bg-indigo-100/70 p-4 border-b border-indigo-200 flex flex-wrap gap-2 items-center">
-              <span className="font-black text-indigo-950 mr-2">Akun Wali:</span>
-              {!student.parent_id && (
-                <>
-                  <button type="button" onClick={() => setParentMode('none')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'none' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Lewati</button>
-                  <button type="button" onClick={() => setParentMode('new')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'new' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Buat Baru</button>
-                  <button type="button" onClick={() => setParentMode('link')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'link' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Tautkan Tersedia</button>
-                </>
+            <div className="bg-indigo-100/70 p-4 border-b border-indigo-200 flex flex-wrap justify-between items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-black text-indigo-950 mr-2">Akun Wali:</span>
+                {!student.parent_id && (
+                  <>
+                    <button type="button" onClick={() => setParentMode('none')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'none' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Lewati</button>
+                    <button type="button" onClick={() => setParentMode('new')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'new' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Buat Baru</button>
+                    <button type="button" onClick={() => setParentMode('link')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${parentMode === 'link' ? 'bg-indigo-700 text-white shadow-sm' : 'bg-white text-indigo-900 border border-indigo-300'}`}>Tautkan</button>
+                  </>
+                )}
+                {student.parent_id && parentMode !== "unlink" && (
+                  <span className="bg-emerald-200 text-emerald-900 px-3 py-1.5 rounded-lg text-xs font-black">Terhubung</span>
+                )}
+                {parentMode === "unlink" && (
+                  <span className="bg-rose-200 text-rose-900 px-3 py-1.5 rounded-lg text-xs font-black">Dihapus (Pending)</span>
+                )}
+              </div>
+              
+              {student.parent_id && parentMode === "edit" && (
+                <button type="button" onClick={() => setParentMode('unlink')} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-100 text-rose-700 border border-rose-300 hover:bg-rose-200 transition-colors">
+                  Putus Tautan
+                </button>
               )}
-              {student.parent_id && (
-                <span className="bg-emerald-200 text-emerald-900 px-3 py-1.5 rounded-lg text-xs font-black">Terhubung</span>
+              {student.parent_id && parentMode === "unlink" && (
+                <button type="button" onClick={() => setParentMode('edit')} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 transition-colors">
+                  Batal Putus
+                </button>
               )}
             </div>
 
             <div className="p-5 bg-white">
               {parentMode === "none" && <p className="text-sm text-gray-600 font-semibold">Tidak ada aksi untuk akun wali.</p>}
               
+              {parentMode === "unlink" && <p className="text-sm text-rose-600 font-bold">Akun wali akan diputuskan tautannya dari siswa ini setelah Anda menekan tombol simpan.</p>}
+
               {parentMode === "link" && (
                 <select value={selectedParentId} onChange={e => setSelectedParentId(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-300 p-3 rounded-xl outline-none focus:border-indigo-600 text-gray-900 font-bold cursor-pointer">
                   <option value="">Pilih Akun Wali...</option>
