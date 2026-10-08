@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { House, UserRound } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,7 +58,6 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-cream text-primary flex flex-col sm:flex-row font-sans selection:bg-emerald-200">
-      {/* ================= DESKTOP SIDEBAR ================= */}
       <aside className="hidden sm:flex flex-col w-72 bg-primary text-cream p-6 justify-between shrink-0 sticky top-0 h-screen shadow-xl">
         <div className="space-y-8">
           <div className="flex items-center gap-3 px-2">
@@ -83,19 +83,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                   : "text-[#D4CDBA] hover:bg-white/5 hover:text-white"
               }`}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.2}
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
+              <House className="w-5 h-5" />
               Portal Beranda
             </button>
 
@@ -107,19 +95,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                   : "text-[#D4CDBA] hover:bg-white/5 hover:text-white"
               }`}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
+              <UserRound className="w-5 h-5" />
               {!userRole
                 ? "Masuk / Login"
                 : userRole === "admin"
@@ -139,14 +115,12 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* ================= MAIN CONTENT CONTAINER ================= */}
       <main className="flex-1 pb-24 sm:pb-0 overflow-x-hidden min-h-screen flex flex-col">
         <div className="max-w-6xl w-full mx-auto p-4 sm:p-8 md:p-10 flex-1 flex flex-col">
           {children}
         </div>
       </main>
 
-      {/* ================= MOBILE BOTTOM NAVIGATION (APP STYLE) ================= */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:hidden">
         <div className="bg-primary/95 backdrop-blur-xl border border-white/10 shadow-2xl rounded-full px-8 py-3.5 flex justify-around items-center max-w-sm mx-auto text-cream">
           <button
@@ -157,19 +131,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                 : "text-[#D4CDBA] hover:text-white"
             }`}
           >
-            <svg
-              className="w-6 h-6"
-              fill={isHome ? "currentColor" : "none"}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.2}
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-              />
-            </svg>
+            <House className="w-6 h-6" />
             <span className="text-[10px] tracking-tight">Beranda</span>
           </button>
 
@@ -183,19 +145,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                 : "text-[#D4CDBA] hover:text-white"
             }`}
           >
-            <svg
-              className="w-6 h-6"
-              fill={isAccountActive ? "currentColor" : "none"}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
+            <UserRound className="w-6 h-6" />
             <span className="text-[10px] tracking-tight">
               {!userRole ? "Masuk" : userRole === "admin" ? "Admin" : "Wali"}
             </span>

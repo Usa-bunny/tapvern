@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Student } from "@/types/admin";
+import { SquarePen, Trash } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -159,7 +160,7 @@ export const ActivityTabs = ({
   return (
     <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-200/85 flex flex-col h-full overflow-hidden">
       {/* Tabs Header */}
-      <div className="flex border-b border-gray-200 px-6 pt-6 shrink-0 overflow-x-none scrollbar-none gap-2">
+      <div className="flex border-b border-gray-200 px-6 pt-6 shrink-0 overflow-x-auto scrollbar-none gap-2">
         <button
           onClick={() => {
             setActiveTab("students");
@@ -232,14 +233,12 @@ export const ActivityTabs = ({
         )}
 
         <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-4">
-          {/* TAB SISWA & DRAFT */}
           {activeTab === "students" && (
             <div className="space-y-6">
-              {/* Draft Register Section */}
               <div className="bg-amber-50/50 p-5 rounded-3xl border border-amber-200/80 shadow-xs">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                    Draft Register (Kartu Baru Tap)
+                    Draft Register
                   </h3>
                   <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-xl text-xs font-black">
                     {draftStudents.length} Kartu Baru
@@ -276,7 +275,6 @@ export const ActivityTabs = ({
                 )}
               </div>
 
-              {/* Active Students Section */}
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
@@ -329,7 +327,6 @@ export const ActivityTabs = ({
             </div>
           )}
 
-          {/* TAB ABSENSI */}
           {activeTab === "attendance" && (
             <>
               {filteredAttendances.length === 0 ? (
@@ -379,7 +376,6 @@ export const ActivityTabs = ({
             </>
           )}
 
-          {/* TAB AKUN WALI */}
           {activeTab === "parents" && (
             <>
               {filteredParents.length === 0 ? (
@@ -523,7 +519,6 @@ export const ActivityTabs = ({
             </>
           )}
 
-          {/* TAB KALENDER LIBUR */}
           {activeTab === "holidays" && (
             <div className="flex flex-col h-full space-y-5">
               <div className="flex flex-col sm:flex-row gap-3 bg-gray-50/80 p-4 rounded-3xl border border-gray-200/60">
@@ -650,37 +645,13 @@ export const ActivityTabs = ({
                               }}
                               className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-xl transition-colors cursor-pointer"
                             >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2.5}
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
-                              </svg>
+                              <SquarePen className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteHoliday(h.id)}
                               className="bg-rose-50 hover:bg-rose-100 text-rose-600 p-2.5 rounded-xl transition-colors cursor-pointer"
                             >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2.5}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
+                              <Trash className="w-4 h-4" />
                             </button>
                           </div>
                         </div>

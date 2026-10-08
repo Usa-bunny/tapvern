@@ -165,9 +165,6 @@ export default function AdminDashboard() {
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 space-y-2">
-          <span className="text-[10px] font-black tracking-widest uppercase bg-white/10 text-emerald-300 px-3.5 py-1.5 rounded-full">
-            ADMINISTRATOR
-          </span>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight">
             Admin Console
           </h1>
@@ -184,7 +181,7 @@ export default function AdminDashboard() {
           }}
           className="relative z-10 bg-white/10 hover:bg-white/20 text-white px-6 py-3.5 rounded-2xl transition-colors font-black text-xs backdrop-blur-md border border-white/15 w-full md:w-auto cursor-pointer"
         >
-          Keluar Sesi
+          Logout
         </button>
       </header>
 

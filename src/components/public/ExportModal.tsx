@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
+import { Download, X } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -167,19 +168,7 @@ export const ExportModal = ({
             onClick={onClose}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-full transition-colors cursor-pointer"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -272,21 +261,9 @@ export const ExportModal = ({
         <button
           onClick={handleExport}
           disabled={isExporting}
-          className="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm tracking-wide hover:bg-[#172118] transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:animate-pulse cursor-pointer"
+          className="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm tracking-wide hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:animate-pulse cursor-pointer"
         >
-          <svg
-            className="w-5 h-5 text-emerald-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-            />
-          </svg>
+          <Download className="w-5 h-5 text-emerald-400"/>
           {isExporting ? "Menyiapkan Data..." : "Download Excel (.xlsx)"}
         </button>
       </div>
